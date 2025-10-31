@@ -1,0 +1,19 @@
+{
+  "name": "bio_cidades",
+  "private": true,
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node/*": ">=20.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test -- --passWithNoTests",
+    "format": "turbo run format"
+  }
+}
