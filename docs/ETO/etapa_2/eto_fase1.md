@@ -109,3 +109,93 @@ install + lint + build). **Critérios de Aceite (verificáveis):**
   excessivamente rígido → ajustar globs do lint-staged; pipeline lento →
   adicionar cache; rollback removendo `.husky/` e workflow. **Documentos
   relacionados:** rastreabilidade.md; overview_etapa2.md; este `eto_fase1.md`.
+
+## Sprint 2 — API Bootstrap (Registro Orion · Pt.1)
+
+### Tarefa 1 — API Scaffolding & Workspace Wiring
+
+**Resumo:** Criar o app **NestJS** em `apps/api` e integrá-lo ao monorepo
+(pnpm/Turbo), preparando scripts e configuração base.
+
+**ID:** E2-F1-S2-T1 **Branch base:** develop **Branch de trabalho:**
+feature/e2-f1-s2-t1-api-bootstrap **Objetivo (one-liner):** Subir a API NestJS
+(apps/api) integrada ao workspace e pronta para evolução. **Escopo:** gerar app
+NestJS; `package.json` do pacote (`name: "@bc/api"`), scripts
+(`dev/build/lint/test`), `tsconfig` local (herdando do `tsconfig.base.json`),
+`main.ts` com CORS e `globalPrefix 'api/v1'`, `.env.example`. **Critérios de
+Aceite (verificáveis):**
+
+- `pnpm --filter @bc/api dev` inicia servidor (porta 3000 por padrão,
+  configurável por `PORT`).
+- Prefixo global `api/v1` ativo.
+- Scripts do pacote executam via Turbo (`pnpm -w run dev`).
+  **Artefatos/Interfaces:** `apps/api/package.json`, `apps/api/src/main.ts`,
+  `apps/api/src/app.module.ts`, `apps/api/tsconfig.json`, `.env.example`.
+  **Diretórios/Arquivos (root):** `apps/api/**`. **Comandos de verificação:**
+  `pnpm --filter @bc/api dev`; `curl -i http://localhost:3000/` (404 esperado
+  até endpoints); `curl -i http://localhost:3000/api/v1` (404 com prefixo).
+  **Commit sugerido:** 🔧 build: bootstrap NestJS em apps/api (workspace &
+  scripts) **Riscos & rollback:** conflito de porta → ajustar `.env`; rollback
+  removendo `apps/api` e lockfile relacionado. **Documentos relacionados:**
+  overview_etapa2.md; rastreabilidade.md; este `eto_fase1.md`.
+
+### Tarefa 2 — Headers Orion & Problem+JSON
+
+**Resumo:** Implementar **headers obrigatórios** e **filtro de exceções** para
+**RFC7807** (`application/problem+json`).
+
+**ID:** E2-F1-S2-T2 **Branch base:** develop **Branch de trabalho:**
+feature/e2-f1-s2-t2-headers-problemjson **Objetivo (one-liner):** Garantir
+`X-Correlation-Id` e `X-API-Version` em todas as respostas; aceitar
+`X-Idempotency-Key` em POST; padronizar erros em Problem+JSON. **Escopo:**
+middleware para `X-Correlation-Id` (gera se ausente), interceptor
+`X-API-Version` (ler de `package.json`/const), aceitação/eco de
+`X-Idempotency-Key` em POST, **ExceptionFilter** global retornando Problem+JSON
+com `type`, `title`, `status`, `detail`, `instance`, `correlation_id`.
+**Critérios de Aceite (verificáveis):**
+
+- Qualquer erro (`HttpException`) retorna `application/problem+json` com os
+  campos exigidos e `correlation_id`.
+- Todas as respostas possuem `X-Correlation-Id` e `X-API-Version`.
+- Requisições POST com `X-Idempotency-Key` veem o header ecoado.
+  **Artefatos/Interfaces:**
+  `apps/api/src/common/middleware/correlation-id.middleware.ts`,
+  `.../interceptors/version.interceptor.ts`,
+  `.../filters/problem-json.filter.ts`, `main.ts` (registro global).
+  **Diretórios/Arquivos (root):** `apps/api/src/common/**`,
+  `apps/api/src/main.ts`. **Comandos de verificação:**
+  `curl -i http://localhost:3000/naoexiste`;
+  `curl -i -X POST http://localhost:3000/dev/echo -H 'X-Idempotency-Key: abc'`
+  (rota stub para teste). **Commit sugerido:** 🛡️ security/🛠️ refactor: headers
+  Orion + Problem+JSON (global) **Riscos & rollback:** incompatibilidades de
+  libs → isolar configuração no `main.ts`; rollback removendo registros globais.
+  **Documentos relacionados:** etica_privacidade.md; rastreabilidade.md.
+
+### Tarefa 3 — Endpoints /status | /healthz | /readyz
+
+**Resumo:** Implementar endpoints padrão com payload mínimo e integração aos
+headers Orion.
+
+**ID:** E2-F1-S2-T3 **Branch base:** develop **Branch de trabalho:**
+feature/e2-f1-s2-t3-status-health-ready **Objetivo (one-liner):** Expor
+`GET /api/v1/status`, `GET /healthz`, `GET /readyz` com checks simples.
+**Escopo:** controller de status (`/api/v1/status` com `version`, `timestamp`,
+`uptime`); `healthz` (process up); `readyz` (checks mínimos — ex.: acesso a env;
+DB opcional stub). **Critérios de Aceite (verificáveis):**
+
+- `curl -i /api/v1/status` retorna 200 com `version/timestamp/uptime` e headers
+  Orion.
+- `curl -i /healthz` e `/readyz` retornam 200 (`readyz` pode iniciar com
+  `checks: []`).
+- Em erro forçado, resposta é Problem+JSON com `correlation_id`.
+  **Artefatos/Interfaces:** `apps/api/src/status/status.controller.ts`,
+  `status.service.ts`, `readyz.controller.ts`, `healthz.controller.ts` (ou
+  módulo único). **Diretórios/Arquivos (root):** `apps/api/src/status/**`,
+  `apps/api/src/app.module.ts`. **Comandos de verificação:**
+  `curl -i http://localhost:3000/api/v1/status`;
+  `curl -i http://localhost:3000/healthz`;
+  `curl -i http://localhost:3000/readyz`. **Commit sugerido:** ✨ feat:
+  endpoints /status /healthz /readyz com headers Orion **Riscos & rollback:**
+  colisão de prefixos de rota → definir `globalPrefix = 'api/v1'` no `main.ts`;
+  rollback via revert do módulo de status. **Documentos relacionados:**
+  arquitetura_alvo.md; rastreabilidade.md; este `eto_fase1.md`.
